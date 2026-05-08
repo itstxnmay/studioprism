@@ -26,7 +26,7 @@ function isMobileDevice(): boolean {
   );
 }
 
-export default function DiamondScene({ onLoaded, onProgress, entranceReady, currentSection = 0, transitionProgressRef }: DiamondSceneProps) {
+export default function DiamondScene({ onLoaded, onProgress, entranceReady, currentSection = 0 }: DiamondSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const entranceReadyRef = useRef(false);
   const currentSectionRef = useRef(0);
@@ -290,31 +290,24 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady, curr
     ];
 
     // Update scroll targets from section context (called each frame)
+    // Just point target directly at destination keyframe — lerp in animation loop handles smoothing
     const updateScrollTargets = () => {
-      const idx = currentSectionRef.current;
-      const prev = prevSectionRef.current;
-      // transitionProgressRef goes 0→1 during snap, then resets to 0
-      const tp = transitionProgressRef?.current ?? 1;
-      // t=1 means fully arrived at current section, t<1 means mid-transition from prev→current
-      const t = tp === 0 ? 1 : tp;
-
-      const k1 = keyframes[Math.max(0, Math.min(4, prev))];
-      const k2 = keyframes[Math.max(0, Math.min(4, idx))];
-
-      scrollState.targetPosition.x = k1.pos.x + (k2.pos.x - k1.pos.x) * t;
-      scrollState.targetPosition.y = k1.pos.y + (k2.pos.y - k1.pos.y) * t;
-      scrollState.targetPosition.z = k1.pos.z + (k2.pos.z - k1.pos.z) * t;
-      scrollState.targetScale       = k1.scale  + (k2.scale  - k1.scale)  * t;
-      scrollState.targetRotation.x  = k1.rot.x  + (k2.rot.x  - k1.rot.x)  * t;
-      scrollState.targetRotation.y  = k1.rot.y  + (k2.rot.y  - k1.rot.y)  * t;
-      scrollState.targetRotation.z  = k1.rot.z  + (k2.rot.z  - k1.rot.z)  * t;
+      const idx = Math.max(0, Math.min(4, currentSectionRef.current));
+      const k = keyframes[idx];
+      scrollState.targetPosition.x = k.pos.x;
+      scrollState.targetPosition.y = k.pos.y;
+      scrollState.targetPosition.z = k.pos.z;
+      scrollState.targetScale      = k.scale;
+      scrollState.targetRotation.x = k.rot.x;
+      scrollState.targetRotation.y = k.rot.y;
+      scrollState.targetRotation.z = k.rot.z;
     };
 
     // ---- Animation Loop ----
     const clock = new THREE.Clock();
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-    const SMOOTH_SPEED = mobile ? 5.5 : 4.0;
+    const SMOOTH_SPEED = mobile ? 12.0 : 4.0;
 
     const animate = () => {
       frameId = requestAnimationFrame(animate);
