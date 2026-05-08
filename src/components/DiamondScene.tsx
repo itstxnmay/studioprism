@@ -312,7 +312,7 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
     const clock = new THREE.Clock();
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-    const SMOOTH_SPEED = 4.0;
+    const SMOOTH_SPEED = mobile ? 5.5 : 4.0;
 
     const animate = () => {
       frameId = requestAnimationFrame(animate);

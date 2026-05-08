@@ -75,10 +75,10 @@ const snapEase = createCubicBezier(0.83, 0, 0.17, 1);
 /* ────────────────────────────────────────────────────────
    Constants
    ──────────────────────────────────────────────────────── */
-const SNAP_DURATION_MS = typeof window !== "undefined" && window.innerWidth <= 768 ? 800 : 1000;
-const COOLDOWN_MS = 200; // post-landing cooldown (total lockout = animation + cooldown = ~1200ms)
+const SNAP_DURATION_MS = typeof window !== "undefined" && window.innerWidth <= 768 ? 1000 : 1000;
+const COOLDOWN_MS = typeof window !== "undefined" && window.innerWidth <= 768 ? 400 : 200;
 const TOTAL_SECTIONS = 5;
-const SWIPE_THRESHOLD_PX = 50; // slightly higher threshold to avoid accidental swipes
+const SWIPE_THRESHOLD_PX = typeof window !== "undefined" && window.innerWidth <= 768 ? 40 : 50;
 const WHEEL_DELTA_THRESHOLD = 50; // minimum deltaY to trigger snap (prevents trackpad micro-scrolls)
 
 /* ────────────────────────────────────────────────────────
@@ -288,9 +288,9 @@ export function SectionSnapProvider({
       if (!touchIsVerticalRef.current) {
         const dx = Math.abs(e.touches[0].clientX - touchStartXRef.current);
         const dy = Math.abs(e.touches[0].clientY - touchStartYRef.current);
-        if (dy > dx && dy > 10) {
+        if (dy > dx && dy > 15) {
           touchIsVerticalRef.current = true;
-        } else if (dx > dy && dx > 10) {
+        } else if (dx > dy && dx > 15) {
           // Horizontal swipe — don't prevent default, let it pass through
           return;
         }

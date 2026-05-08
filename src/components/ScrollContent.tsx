@@ -16,6 +16,9 @@ export default function ScrollContent() {
   const ctaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const mobile = window.innerWidth <= 768;
+    const toggleActions = mobile ? "play none none none" : "play none none reverse";
+
     const ctx = gsap.context(() => {
       // Hero entrance is now handled by LoaderSequence + CSS animations
       // (hero-entrance-active class triggers scale/blur/stagger)
@@ -31,7 +34,7 @@ export default function ScrollContent() {
             trigger: feature1Ref.current,
             start: "top 80%",
             end: "top 40%",
-            toggleActions: "play none none reverse",
+            toggleActions,
           },
         });
       }
@@ -47,7 +50,7 @@ export default function ScrollContent() {
             trigger: showcaseRef.current,
             start: "top 65%",
             end: "top 25%",
-            toggleActions: "play none none reverse",
+            toggleActions,
           },
         });
       }
@@ -63,7 +66,7 @@ export default function ScrollContent() {
             trigger: feature2Ref.current,
             start: "top 80%",
             end: "top 40%",
-            toggleActions: "play none none reverse",
+            toggleActions,
           },
         });
       }
@@ -78,7 +81,7 @@ export default function ScrollContent() {
           scrollTrigger: {
             trigger: ctaRef.current,
             start: "top 80%",
-            toggleActions: "play none none reverse",
+            toggleActions,
           },
         });
       }
