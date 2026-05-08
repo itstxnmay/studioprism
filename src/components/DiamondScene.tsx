@@ -9,10 +9,6 @@ interface DiamondSceneProps {
   onProgress?: (progress: number) => void;
   /** When true, triggers the diamond entrance animation */
   entranceReady?: boolean;
-  /** Current section index from SectionSnapContext (0-based) */
-  currentSection?: number;
-  /** Normalized transition progress ref from SectionSnapContext */
-  transitionProgressRef?: React.RefObject<number>;
 }
 
 /** Detect mobile / low-power devices */
@@ -26,21 +22,14 @@ function isMobileDevice(): boolean {
   );
 }
 
-export default function DiamondScene({ onLoaded, onProgress, entranceReady, currentSection = 0 }: DiamondSceneProps) {
+export default function DiamondScene({ onLoaded, onProgress, entranceReady }: DiamondSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const entranceReadyRef = useRef(false);
-  const currentSectionRef = useRef(0);
-  const prevSectionRef = useRef(0);
 
-  // Bridge React props into the Three.js animation loop via refs
+  // Bridge React prop into the Three.js animation loop via ref
   useEffect(() => {
     entranceReadyRef.current = !!entranceReady;
   }, [entranceReady]);
-
-  useEffect(() => {
-    prevSectionRef.current = currentSectionRef.current;
-    currentSectionRef.current = currentSection;
-  }, [currentSection]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -274,7 +263,7 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady, curr
 
     // No event listener needed — entrance is driven by entranceReadyRef
 
-    // Section keyframes — indexed by section number
+    // Keyframes for diamond position/scale/rotation per scroll progress
     const keyframes = mobile ? [
       { pos: { x: 0, y: 0.3, z: 0 },    scale: 1.0,  rot: { x: 0,   y: 0,   z: 0    } },
       { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 1.7, y: 2.6, z: 0.35 } },
@@ -289,25 +278,35 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady, curr
       { pos: { x: 0.5,  y: -0.8, z: -3.2 }, scale: 1.65, rot: { x: 4.5, y: 6.6, z: 0.5  } },
     ];
 
-    // Update scroll targets from section context (called each frame)
-    // Just point target directly at destination keyframe — lerp in animation loop handles smoothing
+    /** Read window.scrollY directly each frame and compute keyframe interpolation */
     const updateScrollTargets = () => {
-      const idx = Math.max(0, Math.min(4, currentSectionRef.current));
-      const k = keyframes[idx];
-      scrollState.targetPosition.x = k.pos.x;
-      scrollState.targetPosition.y = k.pos.y;
-      scrollState.targetPosition.z = k.pos.z;
-      scrollState.targetScale      = k.scale;
-      scrollState.targetRotation.x = k.rot.x;
-      scrollState.targetRotation.y = k.rot.y;
-      scrollState.targetRotation.z = k.rot.z;
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? Math.min(scrollTop / docHeight, 1) : 0;
+
+      let index = Math.floor(progress * 4);
+      let t = (progress * 4) - index;
+      if (index >= 4) { index = 3; t = 1; }
+
+      const k1 = keyframes[index];
+      const k2 = keyframes[index + 1];
+
+      scrollState.targetPosition.x = k1.pos.x + (k2.pos.x - k1.pos.x) * t;
+      scrollState.targetPosition.y = k1.pos.y + (k2.pos.y - k1.pos.y) * t;
+      scrollState.targetPosition.z = k1.pos.z + (k2.pos.z - k1.pos.z) * t;
+      scrollState.targetScale      = k1.scale  + (k2.scale  - k1.scale)  * t;
+      scrollState.targetRotation.x = k1.rot.x  + (k2.rot.x  - k1.rot.x)  * t;
+      scrollState.targetRotation.y = k1.rot.y  + (k2.rot.y  - k1.rot.y)  * t;
+      scrollState.targetRotation.z = k1.rot.z  + (k2.rot.z  - k1.rot.z)  * t;
     };
 
     // ---- Animation Loop ----
     const clock = new THREE.Clock();
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-    const SMOOTH_SPEED = mobile ? 12.0 : 4.0;
+    // Mobile: very high = nearly instant tracking (snap easing already smooth)
+    // Desktop: gentler follow for cinematic feel
+    const SMOOTH_SPEED = mobile ? 60.0 : 4.0;
 
     const animate = () => {
       frameId = requestAnimationFrame(animate);

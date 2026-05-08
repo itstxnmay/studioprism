@@ -6,30 +6,12 @@ import Navbar from "@/components/Navbar";
 import ScrollContent from "@/components/ScrollContent";
 import CustomCursor from "@/components/CustomCursor";
 import LoaderSequence from "@/components/LoaderSequence";
-import { SectionSnapProvider, useSectionSnap } from "@/lib/SectionSnapContext";
+import { SectionSnapProvider } from "@/lib/SectionSnapContext";
 
 // Dynamic import for Three.js (no SSR)
 const DiamondScene = dynamic(() => import("@/components/DiamondScene"), {
   ssr: false,
 });
-
-interface DiamondSceneWrapperProps {
-  onLoaded?: () => void;
-  onProgress?: (progress: number) => void;
-  entranceReady?: boolean;
-}
-
-/** Thin wrapper so DiamondScene can consume SectionSnapContext */
-function DiamondSceneWrapper(props: DiamondSceneWrapperProps) {
-  const { currentSection, transitionProgressRef } = useSectionSnap();
-  return (
-    <DiamondScene
-      {...props}
-      currentSection={currentSection}
-      transitionProgressRef={transitionProgressRef}
-    />
-  );
-}
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
@@ -59,7 +41,7 @@ export default function Home() {
       <Navbar />
 
       {/* 3D Diamond Canvas (fixed, behind content) */}
-      <DiamondSceneWrapper
+      <DiamondScene
         onLoaded={() => setLoaded(true)}
         onProgress={(p) => setProgress(p)}
         entranceReady={loaderDone}
