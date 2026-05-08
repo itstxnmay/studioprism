@@ -52,7 +52,7 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
     const renderer = new THREE.WebGLRenderer({
       antialias: !mobile, // disable AA on mobile for perf
       alpha: true,
-      powerPreference: mobile ? "low-power" : "high-performance",
+      powerPreference: mobile ? "default" : "high-performance",
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
@@ -74,9 +74,9 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
     const envMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        colorTop: { value: new THREE.Color(0x222222) },
-        colorBottom: { value: new THREE.Color(0x000000) },
-        colorHighlight: { value: new THREE.Color(0x444444) },
+        colorTop: { value: new THREE.Color(mobile ? 0x555555 : 0x222222) },
+        colorBottom: { value: new THREE.Color(mobile ? 0x111111 : 0x000000) },
+        colorHighlight: { value: new THREE.Color(mobile ? 0x888888 : 0x444444) },
       },
       vertexShader: `
         varying vec3 vWorldPosition;
@@ -211,20 +211,20 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
         model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             const mat = new THREE.MeshPhysicalMaterial({
-              color: new THREE.Color(0x999999),
+              color: new THREE.Color(mobile ? 0xcccccc : 0x999999),
               metalness: 1.0,
               roughness: 0.0,
               reflectivity: 1.0,
               clearcoat: 1.0,
               clearcoatRoughness: 0.0,
               envMap: cubeRenderTarget.texture,
-              envMapIntensity: 3.0,
+              envMapIntensity: mobile ? 4.0 : 3.0,
               transparent: true,
-              opacity: 0.9,  // Full opacity — always visible
+              opacity: mobile ? 0.95 : 0.9,
               side: THREE.DoubleSide,
               ior: 2.42,
               thickness: 2.0,
-              transmission: 0.3,
+              transmission: mobile ? 0.05 : 0.3,
               sheen: 0.5,
               sheenColor: new THREE.Color(0xffffff),
               specularIntensity: 1.0,
@@ -272,11 +272,11 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
 
       // Different keyframes for mobile: diamond stays more centered, smaller scale
       const keyframes = mobile ? [
-        { pos: { x: 0, y: 0.3, z: 0 }, scale: 0.85, rot: { x: 0, y: 0, z: 0 } },
-        { pos: { x: 0, y: -0.5, z: -1.0 }, scale: 0.7, rot: { x: 1.7, y: 2.6, z: 0.35 } },
-        { pos: { x: 0, y: 0, z: -2.5 }, scale: 1.5, rot: { x: 2.9, y: 4.4, z: 0.55 } },
-        { pos: { x: 0, y: -0.5, z: -1.0 }, scale: 0.7, rot: { x: 3.9, y: 5.8, z: 0.4 } },
-        { pos: { x: 0, y: -0.6, z: -2.0 }, scale: 1.2, rot: { x: 4.5, y: 6.6, z: 0.5 } }
+        { pos: { x: 0, y: 0.3, z: 0 }, scale: 1.0, rot: { x: 0, y: 0, z: 0 } },
+        { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 1.7, y: 2.6, z: 0.35 } },
+        { pos: { x: 0, y: 0, z: -2.0 }, scale: 1.8, rot: { x: 2.9, y: 4.4, z: 0.55 } },
+        { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 3.9, y: 5.8, z: 0.4 } },
+        { pos: { x: 0, y: -0.4, z: -1.5 }, scale: 1.4, rot: { x: 4.5, y: 6.6, z: 0.5 } }
       ] : [
         { pos: { x: 0, y: 0.2, z: 0 }, scale: 1.0, rot: { x: 0, y: 0, z: 0 } },
         { pos: { x: 1.8, y: 0.1, z: -0.5 }, scale: 1.15, rot: { x: 1.7, y: 2.6, z: 0.35 } },
