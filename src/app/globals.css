@@ -1033,14 +1033,15 @@ body.scroll-idle .scroll-indicator-text {
     overflow: visible;
   }
 
-  /* Hero stays full viewport */
+  /* Hero stays full viewport — text anchored to bottom so diamond shows above */
   .hero-section {
     min-height: 100vh;
     min-height: 100dvh;
     padding-top: 100px;
     padding-bottom: 40px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
+    justify-content: center;
   }
 
   .hero-content {

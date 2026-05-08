@@ -9,6 +9,10 @@ interface DiamondSceneProps {
   onProgress?: (progress: number) => void;
   /** When true, triggers the diamond entrance animation */
   entranceReady?: boolean;
+  /** Current section index from SectionSnapContext (0-based) */
+  currentSection?: number;
+  /** Normalized transition progress ref from SectionSnapContext */
+  transitionProgressRef?: React.RefObject<number>;
 }
 
 /** Detect mobile / low-power devices */
@@ -22,14 +26,21 @@ function isMobileDevice(): boolean {
   );
 }
 
-export default function DiamondScene({ onLoaded, onProgress, entranceReady }: DiamondSceneProps) {
+export default function DiamondScene({ onLoaded, onProgress, entranceReady, currentSection = 0, transitionProgressRef }: DiamondSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const entranceReadyRef = useRef(false);
+  const currentSectionRef = useRef(0);
+  const prevSectionRef = useRef(0);
 
-  // Bridge React prop into the Three.js animation loop via ref
+  // Bridge React props into the Three.js animation loop via refs
   useEffect(() => {
     entranceReadyRef.current = !!entranceReady;
   }, [entranceReady]);
+
+  useEffect(() => {
+    prevSectionRef.current = currentSectionRef.current;
+    currentSectionRef.current = currentSection;
+  }, [currentSection]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -263,50 +274,41 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
 
     // No event listener needed — entrance is driven by entranceReadyRef
 
-    // ---- Scroll Handler ----
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = docHeight > 0 ? Math.min(scrollTop / docHeight, 1) : 0;
-      scrollState.progress = progress;
+    // Section keyframes — indexed by section number
+    const keyframes = mobile ? [
+      { pos: { x: 0, y: 0.3, z: 0 },    scale: 1.0,  rot: { x: 0,   y: 0,   z: 0    } },
+      { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 1.7, y: 2.6, z: 0.35 } },
+      { pos: { x: 0, y: 0,    z: -2.0 }, scale: 1.8,  rot: { x: 2.9, y: 4.4, z: 0.55 } },
+      { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 3.9, y: 5.8, z: 0.4  } },
+      { pos: { x: 0, y: -0.4, z: -1.5 }, scale: 1.4,  rot: { x: 4.5, y: 6.6, z: 0.5  } },
+    ] : [
+      { pos: { x: 0,    y: 0.2,  z: 0    }, scale: 1.0,  rot: { x: 0,   y: 0,   z: 0    } },
+      { pos: { x: 1.8,  y: 0.1,  z: -0.5 }, scale: 1.15, rot: { x: 1.7, y: 2.6, z: 0.35 } },
+      { pos: { x: 0,    y: 0.4,  z: -3.7 }, scale: 2.15, rot: { x: 2.9, y: 4.4, z: 0.55 } },
+      { pos: { x: -1.8, y: 0.1,  z: -0.7 }, scale: 1.15, rot: { x: 3.9, y: 5.8, z: 0.4  } },
+      { pos: { x: 0.5,  y: -0.8, z: -3.2 }, scale: 1.65, rot: { x: 4.5, y: 6.6, z: 0.5  } },
+    ];
 
-      // Different keyframes for mobile: diamond stays more centered, smaller scale
-      const keyframes = mobile ? [
-        { pos: { x: 0, y: 0.3, z: 0 }, scale: 1.0, rot: { x: 0, y: 0, z: 0 } },
-        { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 1.7, y: 2.6, z: 0.35 } },
-        { pos: { x: 0, y: 0, z: -2.0 }, scale: 1.8, rot: { x: 2.9, y: 4.4, z: 0.55 } },
-        { pos: { x: 0, y: -0.3, z: -0.5 }, scale: 0.85, rot: { x: 3.9, y: 5.8, z: 0.4 } },
-        { pos: { x: 0, y: -0.4, z: -1.5 }, scale: 1.4, rot: { x: 4.5, y: 6.6, z: 0.5 } }
-      ] : [
-        { pos: { x: 0, y: 0.2, z: 0 }, scale: 1.0, rot: { x: 0, y: 0, z: 0 } },
-        { pos: { x: 1.8, y: 0.1, z: -0.5 }, scale: 1.15, rot: { x: 1.7, y: 2.6, z: 0.35 } },
-        { pos: { x: 0, y: 0.4, z: -3.7 }, scale: 2.15, rot: { x: 2.9, y: 4.4, z: 0.55 } },
-        { pos: { x: -1.8, y: 0.1, z: -0.7 }, scale: 1.15, rot: { x: 3.9, y: 5.8, z: 0.4 } },
-        { pos: { x: 0.5, y: -0.8, z: -3.2 }, scale: 1.65, rot: { x: 4.5, y: 6.6, z: 0.5 } }
-      ];
+    // Update scroll targets from section context (called each frame)
+    const updateScrollTargets = () => {
+      const idx = currentSectionRef.current;
+      const prev = prevSectionRef.current;
+      // transitionProgressRef goes 0→1 during snap, then resets to 0
+      const tp = transitionProgressRef?.current ?? 1;
+      // t=1 means fully arrived at current section, t<1 means mid-transition from prev→current
+      const t = tp === 0 ? 1 : tp;
 
-      let index = Math.floor(progress * 4);
-      let t = (progress * 4) - index;
-      if (index >= 4) { index = 3; t = 1; }
-
-      const k1 = keyframes[index];
-      const k2 = keyframes[index + 1];
+      const k1 = keyframes[Math.max(0, Math.min(4, prev))];
+      const k2 = keyframes[Math.max(0, Math.min(4, idx))];
 
       scrollState.targetPosition.x = k1.pos.x + (k2.pos.x - k1.pos.x) * t;
       scrollState.targetPosition.y = k1.pos.y + (k2.pos.y - k1.pos.y) * t;
       scrollState.targetPosition.z = k1.pos.z + (k2.pos.z - k1.pos.z) * t;
-      scrollState.targetScale = k1.scale + (k2.scale - k1.scale) * t;
-      scrollState.targetRotation.x = k1.rot.x + (k2.rot.x - k1.rot.x) * t;
-      scrollState.targetRotation.y = k1.rot.y + (k2.rot.y - k1.rot.y) * t;
-      scrollState.targetRotation.z = k1.rot.z + (k2.rot.z - k1.rot.z) * t;
+      scrollState.targetScale       = k1.scale  + (k2.scale  - k1.scale)  * t;
+      scrollState.targetRotation.x  = k1.rot.x  + (k2.rot.x  - k1.rot.x)  * t;
+      scrollState.targetRotation.y  = k1.rot.y  + (k2.rot.y  - k1.rot.y)  * t;
+      scrollState.targetRotation.z  = k1.rot.z  + (k2.rot.z  - k1.rot.z)  * t;
     };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    setTimeout(() => {
-      const { ScrollTrigger } = require("gsap/ScrollTrigger");
-      ScrollTrigger.refresh();
-    }, 50);
 
     // ---- Animation Loop ----
     const clock = new THREE.Clock();
@@ -352,6 +354,9 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
         }
         particleGeometry.attributes.position.needsUpdate = true;
       }
+
+      // Update diamond targets from section context each frame
+      updateScrollTargets();
 
       if (diamond) {
         // ── Trigger entrance when prop flips and diamond is loaded ──
@@ -419,7 +424,6 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
 
     // ---- Cleanup ----
     return () => {
-      window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(frameId);
       renderer.dispose();
