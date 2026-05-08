@@ -211,7 +211,7 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
         model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             const mat = new THREE.MeshPhysicalMaterial({
-              color: new THREE.Color(mobile ? 0xcccccc : 0x999999),
+              color: new THREE.Color(mobile ? 0xb0c4de : 0x999999),
               metalness: 1.0,
               roughness: 0.0,
               reflectivity: 1.0,
@@ -226,7 +226,7 @@ export default function DiamondScene({ onLoaded, onProgress, entranceReady }: Di
               thickness: 2.0,
               transmission: mobile ? 0.05 : 0.3,
               sheen: 0.5,
-              sheenColor: new THREE.Color(0xffffff),
+              sheenColor: new THREE.Color(mobile ? 0xaaccff : 0xffffff),
               specularIntensity: 1.0,
               specularColor: new THREE.Color(0xffffff),
             });

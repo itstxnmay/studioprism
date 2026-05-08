@@ -1237,6 +1237,26 @@ body.scroll-idle .scroll-indicator-text {
   .canvas-container {
     pointer-events: none;
   }
+
+  /* ── Subtle dark backdrop behind text for diamond contrast ── */
+  .scroll-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(0, 0, 0, 0.45) 0%,
+      rgba(0, 0, 0, 0.2) 50%,
+      transparent 80%
+    );
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .scroll-section > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 /* ============================================
