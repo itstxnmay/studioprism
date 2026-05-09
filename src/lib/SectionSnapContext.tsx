@@ -75,11 +75,14 @@ const snapEase = createCubicBezier(0.83, 0, 0.17, 1);
 /* ────────────────────────────────────────────────────────
    Constants
    ──────────────────────────────────────────────────────── */
-const SNAP_DURATION_MS = typeof window !== "undefined" && window.innerWidth <= 768 ? 1000 : 1000;
-const COOLDOWN_MS = typeof window !== "undefined" && window.innerWidth <= 768 ? 400 : 200;
+const IS_MOBILE = typeof window !== "undefined" && (
+  window.innerWidth <= 768 ||
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+);
+const SNAP_DURATION_MS = 1000;
+const COOLDOWN_MS = 200;
 const TOTAL_SECTIONS = 5;
-const SWIPE_THRESHOLD_PX = typeof window !== "undefined" && window.innerWidth <= 768 ? 40 : 50;
-const WHEEL_DELTA_THRESHOLD = 50; // minimum deltaY to trigger snap (prevents trackpad micro-scrolls)
+const WHEEL_DELTA_THRESHOLD = 50;
 
 /* ────────────────────────────────────────────────────────
    Context Types
@@ -143,9 +146,6 @@ export function SectionSnapProvider({
   const animatingRef = useRef(false);
   const coolingRef = useRef(false);
   const rafRef = useRef(0);
-  const touchStartYRef = useRef(0);
-  const touchStartXRef = useRef(0);
-  const touchIsVerticalRef = useRef(false);
 
   /** Get the scroll-Y target for a given section index */
   const getSectionY = useCallback((index: number): number => {
@@ -238,6 +238,36 @@ export function SectionSnapProvider({
     document.body.style.overflow = "";
     document.body.classList.add("scroll-idle");
 
+    /* ────────────────────────────────────────────────────
+       MOBILE: Free continuous scroll — no snapping.
+       Just track which section is visible for navbar etc.
+       ──────────────────────────────────────────────────── */
+    if (IS_MOBILE) {
+      ScrollTrigger.refresh();
+
+      const onScroll = () => {
+        const scrollTop = window.scrollY;
+        const vh = window.innerHeight;
+        const section = Math.round(scrollTop / vh);
+        const clamped = Math.max(0, Math.min(TOTAL_SECTIONS - 1, section));
+        if (clamped !== currentSectionRef.current) {
+          currentSectionRef.current = clamped;
+          setCurrentSection(clamped);
+        }
+      };
+
+      window.addEventListener("scroll", onScroll, { passive: true });
+
+      return () => {
+        window.removeEventListener("scroll", onScroll);
+        document.body.classList.remove("scroll-idle", "is-scrolling");
+      };
+    }
+
+    /* ────────────────────────────────────────────────────
+       DESKTOP: Full section-snap behavior
+       ──────────────────────────────────────────────────── */
+
     // ── Snap to nearest section on init (handles page refresh mid-scroll) ──
     const initTimer = setTimeout(() => {
       const nearest = Math.round(window.scrollY / window.innerHeight);
@@ -256,59 +286,18 @@ export function SectionSnapProvider({
       e.preventDefault();
       if (animatingRef.current || coolingRef.current) return;
 
-      // Accumulate delta to handle trackpad micro-scrolls
       accumulatedDelta += e.deltaY;
 
-      // Reset accumulator if no scroll input for 200ms (new gesture)
       if (deltaResetTimer) clearTimeout(deltaResetTimer);
       deltaResetTimer = setTimeout(() => {
         accumulatedDelta = 0;
       }, 200);
 
-      // Only trigger snap when accumulated delta exceeds threshold
       if (Math.abs(accumulatedDelta) < WHEEL_DELTA_THRESHOLD) return;
 
       const dir = accumulatedDelta > 0 ? 1 : -1;
-      accumulatedDelta = 0; // Reset after triggering
+      accumulatedDelta = 0;
 
-      const next = currentSectionRef.current + dir;
-      if (next < 0 || next >= TOTAL_SECTIONS) return;
-      animateToSection(next);
-    };
-
-    /* ── Touch: swipe detection with vertical-only lock ── */
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartYRef.current = e.touches[0].clientY;
-      touchStartXRef.current = e.touches[0].clientX;
-      touchIsVerticalRef.current = false;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      // Determine swipe direction on first significant move
-      if (!touchIsVerticalRef.current) {
-        const dx = Math.abs(e.touches[0].clientX - touchStartXRef.current);
-        const dy = Math.abs(e.touches[0].clientY - touchStartYRef.current);
-        if (dy > dx && dy > 15) {
-          touchIsVerticalRef.current = true;
-        } else if (dx > dy && dx > 15) {
-          // Horizontal swipe — don't prevent default, let it pass through
-          return;
-        }
-      }
-      // Only prevent default for vertical swipes (our section snap)
-      if (touchIsVerticalRef.current) {
-        e.preventDefault();
-      }
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      if (animatingRef.current || coolingRef.current) return;
-      if (!touchIsVerticalRef.current) return; // ignore horizontal swipes
-
-      const dy = touchStartYRef.current - e.changedTouches[0].clientY;
-      if (Math.abs(dy) < SWIPE_THRESHOLD_PX) return;
-
-      const dir = dy > 0 ? 1 : -1;
       const next = currentSectionRef.current + dir;
       if (next < 0 || next >= TOTAL_SECTIONS) return;
       animateToSection(next);
@@ -380,9 +369,6 @@ export function SectionSnapProvider({
 
     /* ── Bind all listeners ── */
     window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", onResize);
     document.addEventListener("click", onAnchorClick);
@@ -392,9 +378,6 @@ export function SectionSnapProvider({
       clearTimeout(initTimer);
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("click", onAnchorClick);
